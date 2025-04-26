@@ -14,6 +14,11 @@
             <artifactId>javafx-controls</artifactId>
             <version>17</version>
         </dependency>
+        <dependency>
+            <groupId>org.openjfx</groupId>
+            <artifactId>javafx-fxml</artifactId>
+            <version>17</version>
+        </dependency>
     </dependencies>
 
     <properties>
@@ -22,4 +27,16 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     </properties>
 
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.openjfx</groupId>
+                <artifactId>javafx-maven-plugin</artifactId>
+                <version>0.0.8</version>
+                <configuration>
+                    <mainClass>org.Temirjohn.SimulationDriver</mainClass>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
 </project>

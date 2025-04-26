@@ -1,64 +1,37 @@
 package org.Temirjohn.Mediator;
 
-import javafx.application.Application;
-import javafx.stage.Stage;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Random;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
 
-public class SimulationDriver extends Application {
-    private final List<Aircraft> aircraft = new ArrayList<>();
-    private ControlTower tower;
-    private ScheduledExecutorService executor;
+import java.util.*;
+import java.util.concurrent.*;
 
-    @Override
-    public void start(Stage primaryStage) {
-        TowerDashboard dashboard = new TowerDashboard(primaryStage);
-        tower = new ControlTower(dashboard);
-
-        Random random = new Random();
-        for (int i = 0; i < 10; i++) {
-            int fuel = random.nextInt(100);
-            String id = "AC" + (i + 1);
-            Aircraft a;
-            switch (random.nextInt(3)) {
-                case 0:
-                    a = new PassengerPlane(id, fuel);
-                    break;
-                case 1:
-                    a = new CargoPlane(id, fuel);
-                    break;
-                default:
-                    a = new Helicopter(id, fuel);
-            }
-            aircraft.add(a);
-        }
-
-        executor = Executors.newScheduledThreadPool(1);
-        executor.scheduleAtFixedRate(() -> {
-            Aircraft a = aircraft.get(random.nextInt(aircraft.size()));
-            String request = random.nextBoolean() ? "Request landing" : "Request takeoff";
-            if (random.nextInt(100) < 5) {
-                a.send("MAYDAY", tower);
-            } else {
-                a.send(request, tower);
-                tower.requestRunway(a);
-            }
-            tower.releaseRunway();
-        }, 0, 1, TimeUnit.SECONDS);
-    }
-
-    @Override
-    public void stop() {
-        if (executor != null) {
-            executor.shutdown();
-        }
-    }
-
+public class SimulationDriver {
     public static void main(String[] args) {
-        launch(args);
+        TowerDashboard.launchDashboard();
+        ControlTower tower = new ControlTower();
+        ScheduledExecutorService exec = Executors.newScheduledThreadPool(1);
+        Random rnd = new Random();
+
+        for (int i = 0; i < 10; i++) {
+            int type = rnd.nextInt(3);
+            boolean landing = rnd.nextBoolean();
+            Aircraft a;
+            String id = "A" + (i + 1);
+            switch (type) {
+                case 0: a = new PassengerPlane(id, tower, landing); break;
+                case 1: a = new CargoPlane(id, tower, landing); break;
+                default: a = new Helicopter(id, tower, landing); break;
+            }
+
+            exec.scheduleAtFixedRate(() -> {
+                if (rnd.nextDouble() < 0.05) {
+                    TowerDashboard.log(id + " declares MAYDAY!");
+                    a.declareEmergency();
+                } else {
+                    a.requestRunway();
+                }
+            }, rnd.nextInt(5), 1, TimeUnit.SECONDS);
+        }
+
+        exec.schedule(() -> exec.shutdown(), 30, TimeUnit.SECONDS);
     }
 }

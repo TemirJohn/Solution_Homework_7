@@ -1,90 +1,55 @@
 package org.Temirjohn.Mediator;
 
-import java.util.ArrayDeque;
-import java.util.Queue;
+import java.util.*;
 
 public class ControlTower implements TowerMediator {
     private final Queue<Aircraft> landingQueue = new ArrayDeque<>();
     private final Queue<Aircraft> takeoffQueue = new ArrayDeque<>();
-    private Aircraft currentRunwayUser = null;
-    private boolean emergencyInProgress = false;
-    private final TowerDashboard dashboard;
-
-    public ControlTower(TowerDashboard dashboard) {
-        this.dashboard = dashboard;
-    }
 
     @Override
-    public void broadcast(String msg, Aircraft sender) {
-        String log = "Tower broadcasts from " + sender.getId() + ": " + msg;
-        System.out.println(log);
-        dashboard.logMessage(log);
-        if (msg.equals("MAYDAY")) {
-            handleEmergencyRequest(sender);
+    public synchronized void broadcast(String msg, Aircraft sender) {
+        TowerDashboard.log(sender.getId() + ": " + msg);
+        TowerDashboard.updateQueues(queueToList(landingQueue), queueToList(takeoffQueue));
+        for (Aircraft a : AircraftRegistry.getAll()) {
+            if (a != sender) a.receive(msg);
         }
     }
 
     @Override
-    public boolean requestRunway(Aircraft a) {
-        if (emergencyInProgress && !a.isEmergency()) {
-            a.receive("Hold: Emergency in progress");
-            return false;
-        }
-
+    public synchronized boolean requestRunway(Aircraft a) {
         if (a.isEmergency()) {
-            return handleEmergencyRequest(a);
+            landingQueue.remove(a);
+            ((ArrayDeque<Aircraft>) landingQueue).addFirst(a);
+            TowerDashboard.log(a.getId() + " has EMERGENCY – granted runway!");
+            TowerDashboard.updateRunway(a.getId() + " (EMERGENCY)");
+            return true;
         }
 
-        if (a.getStatus().contains("Landing")) {
-            landingQueue.add(a);
+        if (a.isLanding()) {
+            if (!landingQueue.contains(a)) landingQueue.offer(a);
+            if (landingQueue.peek() == a) {
+                landingQueue.poll();
+                TowerDashboard.updateRunway(a.getId() + " (Landing)");
+                broadcast("Cleared to land", a);
+                return true;
+            }
         } else {
-            takeoffQueue.add(a);
+            if (!takeoffQueue.contains(a)) takeoffQueue.offer(a);
+            if (landingQueue.isEmpty() && takeoffQueue.peek() == a) {
+                takeoffQueue.poll();
+                TowerDashboard.updateRunway(a.getId() + " (Takeoff)");
+                broadcast("Cleared for takeoff", a);
+                return true;
+            }
         }
 
-        updateDashboard();
-        return processQueues();
-    }
-
-    private boolean handleEmergencyRequest(Aircraft a) {
-        emergencyInProgress = true;
-        broadcast("MAYDAY: Emergency landing for " + a.getId(), a);
-        landingQueue.clear();
-        takeoffQueue.clear();
-        if (currentRunwayUser != null) {
-            currentRunwayUser.receive("Clear runway: Emergency");
-        }
-        currentRunwayUser = a;
-        a.receive("Cleared for emergency landing");
-        emergencyInProgress = false;
-        updateDashboard();
-        return true;
-    }
-
-    private boolean processQueues() {
-        if (currentRunwayUser != null) return false;
-
-        if (!landingQueue.isEmpty()) {
-            currentRunwayUser = landingQueue.poll();
-            currentRunwayUser.receive("Cleared for landing");
-            updateDashboard();
-            return true;
-        } else if (!takeoffQueue.isEmpty()) {
-            currentRunwayUser = takeoffQueue.poll();
-            currentRunwayUser.receive("Cleared for takeoff");
-            updateDashboard();
-            return true;
-        }
+        TowerDashboard.updateQueues(queueToList(landingQueue), queueToList(takeoffQueue));
         return false;
     }
 
-    public void releaseRunway() {
-        currentRunwayUser = null;
-        updateDashboard();
-        processQueues();
-    }
-
-    private void updateDashboard() {
-        dashboard.updateRunwayStatus(currentRunwayUser != null ? currentRunwayUser.getId() : "Free");
-        dashboard.updateQueueLengths(landingQueue.size(), takeoffQueue.size());
+    private List<String> queueToList(Queue<Aircraft> queue) {
+        List<String> list = new ArrayList<>();
+        for (Aircraft a : queue) list.add(a.getId());
+        return list;
     }
 }
