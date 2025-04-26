@@ -95,7 +95,6 @@ The Mediator Pattern is better than direct aircraft-to-aircraft communication fo
 ### Result
 
 ![img_5.png](img_5.png)
-![img_6.png](img_6.png)
 
 ### Reflection
 The Mediator pattern greatly simplifies many-to-many communication. Without it, aircraft would need direct references to each other, leading to high coupling and complexity. With Mediator, aircraft only communicate through the tower.
