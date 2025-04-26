@@ -56,7 +56,6 @@ Using the Iterator Pattern is preferable to exposing a raw `List<Episode>` for s
 ---
 
 ![img_2.png](img_2.png)
-![img_3.png](img_3.png)
 
 ---
 
